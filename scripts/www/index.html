@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>3D打印记账成本系统</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,sans-serif;}
+        body{background:#f2f5f8;padding:12px;}
+        .container{max-width:100%;margin:0 auto;background:#fff;border-radius:12px;padding:16px;box-shadow:0 3px 12px #ddd;}
+        h2{text-align:center;color:#2c3e50;margin-bottom:16px;font-size:18px;}
+        .group{margin-bottom:14px;border:1px solid #e8edf2;border-radius:8px;padding:12px;}
+        .group-title{font-weight:bold;color:#34495e;margin-bottom:8px;font-size:15px;}
+        .item{margin:8px 0;}
+        label{display:block;font-size:13px;color:#555;margin-bottom:4px;}
+        input,select{width:100%;padding:8px;border:1px solid #ddd;border-radius:5px;font-size:14px;}
+        .btn-row{display:flex;gap:6px;margin:12px 0;flex-wrap:wrap;}
+        button{flex:1;min-width:100px;padding:10px;border:none;border-radius:6px;font-size:14px;font-weight:500;}
+        .calc{background:#2980b9;color:#fff;}
+        .save{background:#27ae60;color:#fff;}
+        .export{background:#9b59b6;color:#fff;}
+        .del{background:#e74c3c;color:#fff;}
+        .add{background:#16a085;color:#fff;}
+        .result-box{margin-top:12px;padding:12px;background:#f7fafe;border-radius:8px;line-height:1.7;font-size:14px;}
+        .stat-box{margin:12px 0;padding:12px;background:#fff8e8;border-radius:8px;}
+        table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px;}
+        th,td{border:1px solid #eee;padding:5px;text-align:center;}
+        th{background:#f5f7fa;}
+        .search-bar{display:flex;gap:6px;margin:8px 0;}
+        .mini-table{width:100%;font-size:12px;margin-top:6px;}
+        #statInfo {
+            font-size: 14px;
+            line-height: 1.6;
+            color: #333;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>3D打印记账成本系统</h2>
+
+    <div class="group">
+        <div class="group-title">每月房租分摊</div>
+        <div class="item">
+            <label>每月房租(元)</label>
+            <input type="number" id="monthRent" placeholder="填写房租">
+        </div>
+        <div class="item">
+            <label>月度营业天数</label>
+            <input type="number" id="workDays" value="30">
+        </div>
+    </div>
+
+    <div class="group">
+        <div class="group-title">自定义机型（每小时成本）</div>
+        <div class="item">
+            <label>机型名称</label>
+            <input type="text" id="machineName" placeholder="例：高速机">
+        </div>
+        <div class="item">
+            <label>每小时成本(元)</label>
+            <input type="number" id="machineHourCost" placeholder="例：4.8">
+        </div>
+        <button class="add" onclick="addMachine()">添加机型</button>
+        <table class="mini-table">
+            <thead><tr><th>机型</th><th>每小时成本</th><th>操作</th></tr></thead>
+            <tbody id="machineList"></tbody>
+        </table>
+    </div>
+
+    <div class="group">
+        <div class="group-title">打印设备参数</div>
+        <div class="item">
+            <label>使用机型</label>
+            <select id="machineType"></select>
+        </div>
+        <div class="item">
+            <label>打印时长(分钟)</label>
+            <input type="number" id="printTime" placeholder="输入时长">
+        </div>
+    </div>
+
+    <div class="group">
+        <div class="group-title">自定义耗材（每克成本）</div>
+        <div class="item">
+            <label>耗材名称</label>
+            <input type="text" id="matName" placeholder="例：TPU">
+        </div>
+        <div class="item">
+            <label>每克成本(元)</label>
+            <input type="number" id="matGramCost" placeholder="例：0.05">
+        </div>
+        <button class="add" onclick="addMaterial()">添加耗材</button>
+        <table class="mini-table">
+            <thead><tr><th>耗材</th><th>每克成本</th><th>操作</th></tr></thead>
+            <tbody id="matList"></tbody>
+        </table>
+    </div>
+
+    <div class="group">
+        <div class="group-title">耗材用料参数</div>
+        <div class="item">
+            <label>耗材类型</label>
+            <select id="materialType"></select>
+        </div>
+        <div class="item">
+            <label>耗材重量(g)</label>
+            <input type="number" id="materialWeight" placeholder="填入克重">
+        </div>
+        <div class="item">
+            <label>耗材损耗率(%)</label>
+            <input type="number" id="wasteRate" value="8">
+        </div>
+    </div>
+
+    <div class="group">
+        <div class="group-title">附加成本与成交价</div>
+        <div class="item"><label>人工费(元)</label><input type="number" id="laborFee" value="0"></div>
+        <div class="item"><label>包装杂费(元)</label><input type="number" id="otherFee" value="0"></div>
+        <div class="item"><label>快递费(元)</label><input type="number" id="expressFee" value="0"></div>
+        <div class="item"><label>实际成交报价(元)</label><input type="number" id="realPrice" placeholder="填写最终收款"></div>
+    </div>
+
+    <div class="btn-row">
+        <button class="calc" onclick="calcOne()">单笔核算</button>
+        <button class="save" onclick="saveOrder()">存入台账</button>
+        <button class="export" onclick="exportExcel()">导出CSV</button>
+    </div>
+
+    <div class="search-bar">
+        <input type="date" id="queryDate">
+        <button class="calc" onclick="countDayData()">单日盈亏</button>
+        <button class="save" onclick="countMonthData()">整月盈亏</button>
+    </div>
+
+    <div class="result-box" id="singleRes">
+        <p>填写参数后点击单笔核算</p>
+    </div>
+
+    <div class="stat-box">
+        <div class="group-title">账目统计</div>
+        <p id="statInfo">暂无统计数据</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>序号</th>
+                    <th>单件成本</th>
+                    <th>实际报价</th>
+                    <th>纯利润</th>
+                    <th>成本利润率</th>
+                    <th>营收利润率</th>
+                    <th>日期</th>
+                </tr>
+            </thead>
+            <tbody id="orderTable"></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'print_3d_app_v1';
+const MACHINE_KEY = 'print_machine_app';
+const MAT_KEY = 'print_mat_app';
+
+let orderList = [];
+let machineList = [];
+let matList = [];
+let tempOrder = null;
+
+window.onload = function(){
+    loadMachine();
+    loadMaterial();
+    loadOrders();
+    renderMachineSelect();
+    renderMatSelect();
+    renderTable();
+};
+
+// 机型管理
+function loadMachine(){
+    let s = localStorage.getItem(MACHINE_KEY);
+    machineList = s ? JSON.parse(s) : [
+        {name:"常规桌面机",hour:4.8},
+        {name:"高速工业机",hour:9.0},
+        {name:"大尺寸整机",hour:15.0}
+    ];
+    renderMachineTable();
+}
+function saveMachine(){
+    localStorage.setItem(MACHINE_KEY, JSON.stringify(machineList));
+    renderMachineTable();
+    renderMachineSelect();
+}
+function addMachine(){
+    let name = document.getElementById('machineName').value.trim();
+    let cost = parseFloat(document.getElementById('machineHourCost').value);
+    if(!name || isNaN(cost) || cost<=0){alert("请填写完整");return;}
+    machineList.push({name:name, hour:cost});
+    saveMachine();
+    document.getElementById('machineName').value='';
+    document.getElementById('machineHourCost').value='';
+}
+function delMachine(idx){
+    machineList.splice(idx,1);
+    saveMachine();
+}
+function renderMachineTable(){
+    let html = '';
+    machineList.forEach((m,i)=>{
+        html+=`<tr><td>${m.name}</td><td>${m.hour.toFixed(2)}</td>
+        <td><button onclick="delMachine(${i})" style="padding:3px 6px;font-size:11px" class="del">删</button></td></tr>`;
+    });
+    document.getElementById('machineList').innerHTML=html;
+}
+function renderMachineSelect(){
+    let sel = document.getElementById('machineType');
+    sel.innerHTML='';
+    machineList.forEach(m=>{
+        let opt = document.createElement('option');
+        opt.value = m.hour;
+        opt.innerText = `${m.name} ${m.hour.toFixed(2)}元/小时`;
+        sel.appendChild(opt);
+    });
+}
+
+// 耗材管理
+function loadMaterial(){
+    let s = localStorage.getItem(MAT_KEY);
+    matList = s ? JSON.parse(s) : [
+        {name:"PLA",gram:0.02},
+        {name:"ABS",gram:0.035},
+        {name:"PETG",gram:0.05},
+        {name:"碳纤维",gram:0.08}
+    ];
+    renderMatTable();
+}
+function saveMaterial(){
+    localStorage.setItem(MAT_KEY, JSON.stringify(matList));
+    renderMatTable();
+    renderMatSelect();
+}
+function addMaterial(){
+    let name = document.getElementById('matName').value.trim();
+    let cost = parseFloat(document.getElementById('matGramCost').value);
+    if(!name || isNaN(cost) || cost<=0){alert("请填写完整");return;}
+    matList.push({name:name, gram:cost});
+    saveMaterial();
+    document.getElementById('matName').value='';
+    document.getElementById('matGramCost').value='';
+}
+function delMat(idx){
+    matList.splice(idx,1);
+    saveMaterial();
+}
+function renderMatTable(){
+    let html = '';
+    matList.forEach((m,i)=>{
+        html+=`<tr><td>${m.name}</td><td>${m.gram.toFixed(3)}</td>
+        <td><button onclick="delMat(${i})" style="padding:3px 6px;font-size:11px" class="del">删</button></td></tr>`;
+    });
+    document.getElementById('matList').innerHTML=html;
+}
+function renderMatSelect(){
+    let sel = document.getElementById('materialType');
+    sel.innerHTML='';
+    matList.forEach(m=>{
+        let opt = document.createElement('option');
+        opt.value = m.gram;
+        opt.innerText = `${m.name} ${m.gram.toFixed(3)}元/g`;
+        sel.appendChild(opt);
+    });
+}
+
+// 订单
+function loadOrders(){
+    try{
+        let s = localStorage.getItem(STORAGE_KEY);
+        orderList = s ? JSON.parse(s) : [];
+    }catch(e){orderList=[];}
+}
+function saveOrders(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(orderList));
+}
+
+function getNowDateStr(){
+    let d = new Date();
+    let y = d.getFullYear();
+    let m = String(d.getMonth()+1).padStart(2,'0');
+    let day = String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
+}
+
+// 单笔核算
+function calcOne(){
+    let hourCost = parseFloat(document.getElementById('machineType').value)||0;
+    let pTime = parseFloat(document.getElementById('printTime').value)||0;
+    let matGram = parseFloat(document.getElementById('materialType').value)||0;
+    let weight = parseFloat(document.getElementById('materialWeight').value)||0;
+    let waste = parseFloat(document.getElementById('wasteRate').value)||0;
+    let labor = parseFloat(document.getElementById('laborFee').value)||0;
+    let other = parseFloat(document.getElementById('otherFee').value)||0;
+    let express = parseFloat(document.getElementById('expressFee').value)||0;
+    let realPrice = parseFloat(document.getElementById('realPrice').value)||0;
+
+    if(realPrice<=0){alert("请填写成交报价");return;}
+
+    let machineCost = (pTime/60)*hourCost;
+    let realMatWeight = weight*(1+waste/100);
+    let matCost = realMatWeight * matGram;
+    let singleCost = machineCost + matCost + labor + other + express;
+    let profit = realPrice - singleCost;
+
+    let costRate = singleCost===0 ? 0 : (profit/singleCost*100);
+    let saleRate = realPrice===0 ? 0 : (profit/realPrice*100);
+
+    tempOrder = {
+        cost:singleCost,
+        actual:realPrice,
+        profit: profit,
+        costRate:costRate,
+        saleRate:saleRate,
+        date:getNowDateStr(),
+        time:new Date().toLocaleTimeString()
+    };
+
+    document.getElementById('singleRes').innerHTML = `
+        <p>设备成本：${machineCost.toFixed(2)}元</p>
+        <p>耗材成本：${matCost.toFixed(2)}元</p>
+        <p>单件总成本：${singleCost.toFixed(2)}元</p>
+        <p>实际报价：${realPrice.toFixed(2)}元</p>
+        <p style="color:#e74c3c;font-weight:bold;">纯利润：${profit.toFixed(2)}元</p>
+        <p>成本利润率：${costRate.toFixed(2)}%</p>
+        <p>营收利润率：${saleRate.toFixed(2)}%</p>
+    `;
+}
+
+function saveOrder(){
+    if(!tempOrder){alert("请先核算");return;}
+    orderList.push(tempOrder);
+    saveOrders();
+    renderTable();
+    alert("保存成功");
+    tempOrder=null;
+}
+
+function renderTable(){
+    let tb = document.getElementById('orderTable');
+    tb.innerHTML='';
+    orderList.forEach((item,i)=>{
+        tb.innerHTML+=`<tr>
+            <td>${i+1}</td>
+            <td>${item.cost.toFixed(2)}</td>
+            <td>${item.actual.toFixed(2)}</td>
+            <td>${item.profit.toFixed(2)}</td>
+            <td>${item.costRate.toFixed(2)}%</td>
+            <td>${item.saleRate.toFixed(2)}%</td>
+            <td>${item.date}</td>
+        </tr>`;
+    });
+}
+
+// 【规范格式】单日统计
+function countDayData(){
+    let d = document.getElementById('queryDate').value;
+    if(!d){alert("请选择日期");return;}
+    let rent = parseFloat(document.getElementById('monthRent').value)||0;
+    let days = parseFloat(document.getElementById('workDays').value)||30;
+    let dayRent = rent/days;
+    let cost=0,income=0;
+    orderList.forEach(it=>{if(it.date==d){cost+=it.cost;income+=it.actual;}});
+    let totalCost = cost+dayRent;
+    let profit = income-totalCost;
+
+    let txt = `【${d} 单日统计】
+订单成本：${cost.toFixed(2)}元 | 房租分摊：${dayRent.toFixed(2)}元
+总 成 本：${totalCost.toFixed(2)}元 | 营业营收：${income.toFixed(2)}元
+纯 利 润：${profit.toFixed(2)}元`;
+
+    document.getElementById('statInfo').innerText = txt;
+}
+
+// 【规范格式】整月统计
+function countMonthData(){
+    let d = document.getElementById('queryDate').value;
+    if(!d){alert("请选择日期");return;}
+    let ym = d.substring(0,7);
+    let rent = parseFloat(document.getElementById('monthRent').value)||0;
+    let cost=0,income=0;
+    orderList.forEach(it=>{
+        if(it.date.startsWith(ym)){cost+=it.cost;income+=it.actual;}
+    });
+    let totalCost = cost+rent;
+    let profit = income-totalCost;
+
+    let txt = `【${ym} 整月统计】
+订单成本：${cost.toFixed(2)}元 | 房租总成本：${rent.toFixed(2)}元
+总 成 本：${totalCost.toFixed(2)}元 | 营业营收：${income.toFixed(2)}元
+纯 利 润：${profit.toFixed(2)}元`;
+
+    document.getElementById('statInfo').innerText = txt;
+}
+
+// 导出CSV
+function exportExcel(){
+    if(orderList.length==0){alert("暂无数据");return;}
+    let head="序号,单件成本,实际报价,纯利润,成本利润率,营收利润率,日期,时间\n";
+    let content="";
+    orderList.forEach((it,i)=>{
+        content+=`${i+1},${it.cost.toFixed(2)},${it.actual.toFixed(2)},${it.profit.toFixed(2)},${it.costRate.toFixed(2)}%,${it.saleRate.toFixed(2)}%,${it.date},${it.time}\n`;
+    });
+    let csv = "\uFEFF"+head+content;
+    let blob = new Blob([csv],{type:"text/csv;charset=utf-8"});
+    let a = document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download="3D打印记账.csv";
+    a.click();
+}
+</script>
+</body>
+</html>
